@@ -18,6 +18,7 @@ type (
 		handler  Handler
 		out      chan interface{}
 		priority Priority
+		backoff  *Backoff
 	}
 
 	Priority int
@@ -33,6 +34,11 @@ func WithContext(ctx context.Context, handler Handler, priority Priority) (*Cont
 	return c, c.out
 }
 
-func (c Context) Do() error {
+func (c *Context) WithBackoff(b *Backoff) *Context {
+	c.backoff = b
+	return c
+}
+
+func (c *Context) Do() error {
 	return c.handler(c.Context, c.out)
 }

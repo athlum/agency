@@ -12,7 +12,7 @@ var (
 		Workers:  100,
 		Length:   100,
 		Interval: 1.0,
-		Detail:   []*QueueConf{},
+		Overflow: false,
 	}
 )
 
@@ -20,10 +20,6 @@ type AssignConf struct {
 	Workers  int64
 	Length   int64
 	Interval float64
-	Detail   []*QueueConf
-}
-
-type QueueConf struct {
 	Overflow bool
 }
 
