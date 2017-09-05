@@ -12,11 +12,13 @@ var (
 )
 
 type task struct {
+	*sync.RWMutex
 	queue        *bufferQueue
 	ctx          *Context
 	acquired     bool
 	index        int64
 	backoffState *BackoffState
+	removed      bool
 }
 
 func (t *task) do() error {
@@ -24,6 +26,22 @@ func (t *task) do() error {
 		t.backoffState.sleep(t.ctx.backoff)
 	}
 	return t.ctx.Do()
+}
+
+func (t *task) setRemove(b bool) {
+	t.Lock()
+	defer t.Unlock()
+
+	t.removed = b
+	if b {
+		go t.ctx.Dropped()
+	}
+}
+
+func (t *task) isRemoved() bool {
+	t.RLock()
+	defer t.RUnlock()
+	return t.removed
 }
 
 type bufferQueue struct {
@@ -42,9 +60,26 @@ func newBufferQueue(queue *Queue) *bufferQueue {
 	return bq
 }
 
+func (bq *bufferQueue) drop() bool {
+	var t *task
+	if len(bq.acquired) > 0 {
+		t = bq.acquired[0]
+		bq.acquired = bq.acquired[1:]
+	} else if len(bq.tasks) > 0 {
+		t = bq.tasks[0]
+		bq.tasks = bq.tasks[1:]
+	}
+	if t != nil {
+		t.setRemove(true)
+		return true
+	}
+	return false
+}
+
 func (bq *bufferQueue) insert(ctx *Context) error {
 	bq.index += 1
 	bq.tasks = append(bq.tasks, &task{
+		RWMutex:      &sync.RWMutex{},
 		queue:        bq,
 		ctx:          ctx,
 		index:        bq.index,
@@ -117,12 +152,15 @@ func newQueue(conf *AssignConf) *Queue {
 func (q *Queue) worker(interval time.Duration) {
 	for {
 		t := q.acquire()
-		if t == nil {
+		if t == nil || t.isRemoved() {
 			time.Sleep(interval)
 			continue
 		}
 
-		t.queue.ack(t, t.do())
+		err := t.do()
+		if !t.isRemoved() {
+			t.queue.ack(t, err)
+		}
 	}
 }
 
@@ -137,6 +175,19 @@ func (q *Queue) Insert(p Priority, ctx *Context) error {
 	isFull := q.count == q.length
 	if isFull && !q.overflow {
 		return QueueFull
+	}
+
+	if isFull && q.overflow {
+		var dropped bool
+		ip := int(p)
+		for tp := 0; tp <= ip; tp += 1 {
+			if dropped = q.queues[tp].drop(); !dropped && tp == ip {
+				return QueueFull
+			} else if dropped {
+				q.count -= 1
+				break
+			}
+		}
 	}
 
 	q.count += 1

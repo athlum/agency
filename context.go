@@ -12,22 +12,26 @@ const (
 
 type (
 	Handler func(context.Context, chan<- interface{}) error
+	Dropped func()
 
 	Context struct {
 		context.Context
 		handler  Handler
+		dropped  Dropped
 		out      chan interface{}
 		priority Priority
 		backoff  *Backoff
+		err      error
 	}
 
 	Priority int
 )
 
-func WithContext(ctx context.Context, handler Handler, priority Priority) (*Context, chan<- interface{}) {
+func WithContext(ctx context.Context, handler Handler, dropped Dropped, priority Priority) (*Context, chan<- interface{}) {
 	c := &Context{
 		Context:  ctx,
 		handler:  handler,
+		dropped:  dropped,
 		out:      make(chan interface{}),
 		priority: priority,
 	}
@@ -39,6 +43,20 @@ func (c *Context) WithBackoff(b *Backoff) *Context {
 	return c
 }
 
+func (c *Context) Dropped() {
+	if c.dropped != nil {
+		c.dropped()
+	}
+}
+
 func (c *Context) Do() error {
-	return c.handler(c.Context, c.out)
+	c.err = c.handler(c.Context, c.out)
+	return c.err
+}
+
+func (c *Context) Err() error {
+	if c.err != nil {
+		return c.err
+	}
+	return c.Context.Err()
 }
