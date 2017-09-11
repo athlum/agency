@@ -14,7 +14,7 @@ func init() {
 	go http.ListenAndServe("127.0.0.1:10030", nil)
 	m.assign("sync", &AssignConf{
 		Workers:  1,
-		Length:   10000,
+		Length:   1000000,
 		Interval: 0.1,
 		Overflow: true,
 	})
@@ -30,8 +30,7 @@ func Benchmark_Sync(b *testing.B) {
 	wg := &sync.WaitGroup{}
 
 	// wg.Add(b.N)
-	dropped := 0
-	for n := 0; n < 1000000; n++ {
+	for n := 0; n < b.N; n++ {
 		wg.Add(1)
 		go func() {
 			done := false
@@ -43,7 +42,6 @@ func Benchmark_Sync(b *testing.B) {
 				// time.Sleep(time.Millisecond * 1)
 				return nil
 			}, func() {
-				dropped += 1
 				if !done {
 					done = true
 					wg.Done()
@@ -54,7 +52,6 @@ func Benchmark_Sync(b *testing.B) {
 	}
 
 	wg.Wait()
-	fmt.Println("Benchmark_Sync", dropped)
 }
 
 func Test_Async(b *testing.T) {
