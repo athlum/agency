@@ -40,7 +40,7 @@ func Benchmark_Sync(b *testing.B) {
 					done = true
 					wg.Done()
 				}
-				time.Sleep(time.Millisecond * 1)
+				// time.Sleep(time.Millisecond * 1)
 				return nil
 			}, func() {
 				dropped += 1
@@ -63,6 +63,7 @@ func Test_Async(b *testing.T) {
 	wg.Add(100000)
 	dropped := 0
 	do := 0
+	gl := &sync.Mutex{}
 	for n := 0; n < 100000; n++ {
 		// wg.Add(1)
 		go func() {
@@ -71,8 +72,10 @@ func Test_Async(b *testing.T) {
 			ctx, _ := WithContext(context.Background(), func(ctx context.Context, out chan<- interface{}) error {
 				l.Lock()
 				defer l.Unlock()
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Millisecond * 100)
 				if !done {
+					gl.Lock()
+					defer gl.Unlock()
 					do += 1
 					fmt.Println("done", do, "dropped", dropped)
 					done = true
@@ -83,6 +86,8 @@ func Test_Async(b *testing.T) {
 				l.Lock()
 				defer l.Unlock()
 				if !done {
+					gl.Lock()
+					defer gl.Unlock()
 					dropped += 1
 					fmt.Println("done", do, "dropped", dropped)
 					done = true
@@ -94,6 +99,7 @@ func Test_Async(b *testing.T) {
 	}
 
 	wg.Wait()
+	fmt.Println("Finished", "done", do, "dropped", dropped)
 }
 
 func Test_Backoff(b *testing.T) {

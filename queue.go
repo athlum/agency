@@ -28,6 +28,12 @@ func (t *task) do() error {
 	return t.ctx.Do()
 }
 
+func (t *task) isRemoved() bool {
+	t.RLock()
+	defer t.RUnlock()
+	return t.removed
+}
+
 func (t *task) setRemove(b bool) {
 	t.Lock()
 	defer t.Unlock()
@@ -36,12 +42,6 @@ func (t *task) setRemove(b bool) {
 	if b {
 		go t.ctx.Dropped()
 	}
-}
-
-func (t *task) isRemoved() bool {
-	t.RLock()
-	defer t.RUnlock()
-	return t.removed
 }
 
 type bufferQueue struct {
@@ -153,7 +153,6 @@ func (q *Queue) worker(interval time.Duration) {
 			time.Sleep(interval)
 			continue
 		}
-
 		err := t.do()
 		if !t.isRemoved() {
 			t.queue.ack(t, err)
