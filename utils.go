@@ -4,6 +4,38 @@ import (
 	"time"
 )
 
+type tasks []*task
+
+func taskSlice(tl []*task) *tasks {
+	ts := tasks(tl)
+	return &ts
+}
+
+func (ts *tasks) remove(index int) *task {
+	e := (*ts)[index]
+	copy((*ts)[:index], (*ts)[index+1:])
+	(*ts)[len(*ts)-1] = nil
+	*ts = (*ts)[:len(*ts)-1]
+	return e
+}
+
+func (ts *tasks) pop() *task {
+	return ts.remove(0)
+}
+
+func (ts *tasks) push(t *task) *tasks {
+	*ts = append(*ts, t)
+	return ts
+}
+
+func (ts *tasks) length() int {
+	return len(*ts)
+}
+
+func (ts *tasks) list() []*task {
+	return *ts
+}
+
 func duration(d float64) time.Duration {
 	return time.Millisecond * time.Duration(d*1000)
 }

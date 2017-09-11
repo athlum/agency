@@ -47,27 +47,25 @@ func (t *task) isRemoved() bool {
 type bufferQueue struct {
 	queue    *Queue
 	index    int64
-	tasks    []*task
-	acquired []*task
+	tasks    *tasks
+	acquired *tasks
 }
 
 func newBufferQueue(queue *Queue) *bufferQueue {
 	bq := &bufferQueue{
 		queue:    queue,
-		tasks:    make([]*task, 0, queue.length),
-		acquired: make([]*task, 0, queue.length),
+		tasks:    taskSlice(make([]*task, 0, queue.length)),
+		acquired: taskSlice(make([]*task, 0, queue.length)),
 	}
 	return bq
 }
 
 func (bq *bufferQueue) drop() bool {
 	var t *task
-	if len(bq.acquired) > 0 {
-		t = bq.acquired[0]
-		bq.acquired = bq.acquired[1:]
-	} else if len(bq.tasks) > 0 {
-		t = bq.tasks[0]
-		bq.tasks = bq.tasks[1:]
+	if bq.acquired.length() > 0 {
+		t = bq.acquired.pop()
+	} else if bq.tasks.length() > 0 {
+		t = bq.tasks.pop()
 	}
 	if t != nil {
 		t.setRemove(true)
@@ -78,7 +76,7 @@ func (bq *bufferQueue) drop() bool {
 
 func (bq *bufferQueue) insert(ctx *Context) error {
 	bq.index += 1
-	bq.tasks = append(bq.tasks, &task{
+	bq.tasks.push(&task{
 		RWMutex:      &sync.RWMutex{},
 		queue:        bq,
 		ctx:          ctx,
@@ -89,22 +87,21 @@ func (bq *bufferQueue) insert(ctx *Context) error {
 }
 
 func (bq *bufferQueue) acquire() *task {
-	if len(bq.acquired) > 0 {
-		for _, qt := range bq.acquired {
+	if bq.acquired.length() > 0 {
+		for _, qt := range bq.acquired.list() {
 			if !qt.acquired {
 				return qt
 			}
 		}
 	}
 
-	if len(bq.tasks) == 0 {
+	if bq.tasks.length() == 0 {
 		return nil
 	}
 
-	t := bq.tasks[0]
-	bq.tasks = bq.tasks[1:]
+	t := bq.tasks.pop()
 	t.acquired = true
-	bq.acquired = append(bq.acquired, t)
+	bq.acquired.push(t)
 	return t
 }
 
@@ -112,9 +109,9 @@ func (bq *bufferQueue) ack(t *task, err error) {
 	bq.queue.ack(func() {
 		t.acquired = false
 		if err == nil {
-			for i, qt := range bq.acquired {
+			for i, qt := range bq.acquired.list() {
 				if qt.index == t.index {
-					bq.acquired = append(bq.acquired[:i], bq.acquired[i+1:]...)
+					bq.acquired.remove(i)
 					break
 				}
 			}

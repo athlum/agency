@@ -95,3 +95,55 @@ func Test_Async(b *testing.T) {
 
 	wg.Wait()
 }
+
+func Test_Backoff(b *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	wg.Add(1)
+	dropped := 0
+	do := 0
+	retry := 0
+	for n := 0; n < 1; n++ {
+		// wg.Add(1)
+		go func() {
+			l := &sync.Mutex{}
+			done := false
+			ctx, _ := WithContext(context.Background(), func(ctx context.Context, out chan<- interface{}) error {
+				l.Lock()
+				defer l.Unlock()
+				time.Sleep(time.Second * 1)
+
+				if retry < 10 {
+					msg := fmt.Sprintf("%v", time.Now())
+					fmt.Println("retry", retry, msg)
+					retry += 1
+					return fmt.Errorf(msg)
+				}
+
+				if !done {
+					do += 1
+					fmt.Println("done", do, "dropped", dropped)
+					done = true
+					wg.Done()
+				}
+				return nil
+			}, func() {
+				l.Lock()
+				defer l.Unlock()
+				if !done {
+					dropped += 1
+					fmt.Println("done", do, "dropped", dropped)
+					done = true
+					wg.Done()
+				}
+			}, Priority_Normal)
+			m.emit("sync", ctx.WithBackoff(&Backoff{
+				Backoff:       1.0,
+				BackoffFactor: 1.0,
+				MaxBackoff:    60.0,
+			}))
+		}()
+	}
+
+	wg.Wait()
+}
