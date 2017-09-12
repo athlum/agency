@@ -20,7 +20,13 @@ func Test_Tasks(b *testing.T) {
 	ts.push(&task{
 		index: 4,
 	})
-	fmt.Println(ts.remove(1), ts.length(), ts.list())
+	for i, t := range ts.list() {
+		if t.index == 3 {
+			ts.remove(i)
+			break
+		}
+	}
+	fmt.Println(ts.length(), ts.list())
 	for _, t := range ts.list() {
 		fmt.Println(t.index)
 	}

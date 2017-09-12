@@ -90,6 +90,7 @@ func (bq *bufferQueue) acquire() *task {
 	if bq.acquired.length() > 0 {
 		for _, qt := range bq.acquired.list() {
 			if !qt.acquired {
+				qt.acquired = true
 				return qt
 			}
 		}
