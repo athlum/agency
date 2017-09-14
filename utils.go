@@ -11,6 +11,11 @@ func taskSlice(tl []*task) *tasks {
 	return &ts
 }
 
+func (ts *tasks) clear(index int) {
+	t := ts.remove(index)
+	t.ctx.clear()
+}
+
 func (ts *tasks) remove(index int) *task {
 	e := (*ts)[index]
 	last := (*ts)[len(*ts)-1]

@@ -38,6 +38,10 @@ func WithContext(ctx context.Context, handler Handler, dropped Dropped, priority
 	return c, c.out
 }
 
+func (c *Context) clear() {
+	c.handler = nil
+}
+
 func (c *Context) WithBackoff(b *Backoff) *Context {
 	c.backoff = b
 	return c

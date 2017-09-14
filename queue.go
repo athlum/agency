@@ -112,7 +112,7 @@ func (bq *bufferQueue) ack(t *task, err error) {
 		if err == nil {
 			for i, qt := range bq.acquired.list() {
 				if qt.index == t.index {
-					bq.acquired.remove(i)
+					bq.acquired.clear(i)
 					break
 				}
 			}
