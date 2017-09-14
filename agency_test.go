@@ -74,7 +74,6 @@ func Test_Async(b *testing.T) {
 					gl.Lock()
 					defer gl.Unlock()
 					do += 1
-					fmt.Println("done", do, "dropped", dropped)
 					done = true
 					wg.Done()
 				}
@@ -86,7 +85,6 @@ func Test_Async(b *testing.T) {
 					gl.Lock()
 					defer gl.Unlock()
 					dropped += 1
-					fmt.Println("done", do, "dropped", dropped)
 					done = true
 					wg.Done()
 				}
@@ -116,9 +114,8 @@ func Test_Backoff(b *testing.T) {
 				defer l.Unlock()
 				time.Sleep(time.Second * 1)
 
-				if retry < 10 {
+				if retry < 3 {
 					msg := fmt.Sprintf("%v", time.Now())
-					fmt.Println("retry", retry, msg)
 					retry += 1
 					return fmt.Errorf(msg)
 				}
