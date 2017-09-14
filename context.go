@@ -54,7 +54,9 @@ func (c *Context) Dropped() {
 }
 
 func (c *Context) Do() error {
-	c.err = c.handler(c.Context, c.out)
+	if c.handler != nil {
+		c.err = c.handler(c.Context, c.out)
+	}
 	return c.err
 }
 
