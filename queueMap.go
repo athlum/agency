@@ -78,3 +78,7 @@ func Assign(name string, conf *AssignConf) error {
 	}
 	return m.assign(name, conf)
 }
+
+func State(name string) *State {
+	return m.state(name)
+}
