@@ -22,9 +22,13 @@ func (dc *durationCounter) MarshalJSON() ([]byte, error) {
 
 type State struct {
 	Start                 time.Time
+	Insert                int64
 	InsertedPerSecond     *durationCounter
+	Acquired              int64
 	AcquiredPerSecond     *durationCounter
+	Acknowledged          int64
 	AcknowledgedPerSecond *durationCounter
+	Dropped               int64
 	DroppedPerSecond      *durationCounter
 }
 
@@ -43,27 +47,35 @@ func (s *State) Lived() time.Duration {
 }
 
 func (s *State) insert() {
+	s.Insert += 1
 	s.InsertedPerSecond.push(1, s.Lived())
 }
 
 func (s *State) acq() {
+	s.Acquired += 1
 	s.AcquiredPerSecond.push(1, s.Lived())
 }
 
 func (s *State) ack() {
+	s.Acknowledged += 1
 	s.AcknowledgedPerSecond.push(1, s.Lived())
 }
 
 func (s *State) dropped() {
+	s.Dropped += 1
 	s.DroppedPerSecond.push(1, s.Lived())
 }
 
 func (s *State) MarshalJSON() ([]byte, error) {
 	o := &struct {
 		Start                 time.Time
+		Insert                int64
 		InsertedPerSecond     *durationCounter
+		Acquired              int64
 		AcquiredPerSecond     *durationCounter
+		Acknowledged          int64
 		AcknowledgedPerSecond *durationCounter
+		Dropped               int64
 		DroppedPerSecond      *durationCounter
 		Lived                 time.Duration
 	}{
@@ -72,6 +84,10 @@ func (s *State) MarshalJSON() ([]byte, error) {
 		AcquiredPerSecond:     s.AcquiredPerSecond,
 		AcknowledgedPerSecond: s.AcknowledgedPerSecond,
 		DroppedPerSecond:      s.DroppedPerSecond,
+		Insert:                s.Insert,
+		Acquired:              s.Acquired,
+		Acknowledged:          s.Acknowledged,
+		Dropped:               s.Dropped,
 		Lived:                 s.Lived(),
 	}
 	return json.Marshal(o)
