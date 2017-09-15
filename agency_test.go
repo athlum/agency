@@ -2,6 +2,7 @@ package agency
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -95,6 +96,8 @@ func Test_Async(b *testing.T) {
 
 	wg.Wait()
 	fmt.Println("Finished", "done", do, "dropped", dropped)
+	data, err := json.Marshal(m.state("async"))
+	fmt.Println("State", string(data), err)
 }
 
 func Test_Backoff(b *testing.T) {

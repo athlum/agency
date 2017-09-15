@@ -2,6 +2,7 @@ package agency
 
 import (
 	"errors"
+	"sync"
 )
 
 var (
@@ -24,17 +25,22 @@ type AssignConf struct {
 }
 
 type QueueMap struct {
+	*sync.RWMutex
 	queues map[string]*Queue
 }
 
 func (qm *QueueMap) emit(name string, ctx *Context) error {
+	qm.RLock()
 	if _, exists := qm.queues[name]; !exists {
 		return QueueNotFound
 	}
+	qm.RUnlock()
 	return qm.queues[name].Insert(ctx.priority, ctx)
 }
 
 func (qm *QueueMap) assign(name string, conf *AssignConf) error {
+	qm.Lock()
+	defer qm.Unlock()
 	if _, exists := qm.queues[name]; exists {
 		return QueueCreated
 	}
@@ -42,11 +48,23 @@ func (qm *QueueMap) assign(name string, conf *AssignConf) error {
 	return nil
 }
 
+func (qm *QueueMap) state(name string) *State {
+	qm.RLock()
+	q, exists := qm.queues[name]
+	qm.RUnlock()
+
+	if exists {
+		return q.State()
+	}
+	return nil
+}
+
 var m *QueueMap
 
 func init() {
 	m = &QueueMap{
-		queues: make(map[string]*Queue),
+		RWMutex: &sync.RWMutex{},
+		queues:  make(map[string]*Queue),
 	}
 }
 

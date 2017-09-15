@@ -121,18 +121,20 @@ func (bq *bufferQueue) ack(t *task, err error) {
 }
 
 type Queue struct {
-	*sync.Mutex
+	*sync.RWMutex
 	length   int64
 	count    int64
 	overflow bool
 	queues   []*bufferQueue
+	state    *State
 }
 
 func newQueue(conf *AssignConf) *Queue {
 	q := &Queue{
-		Mutex:    &sync.Mutex{},
+		RWMutex:  &sync.RWMutex{},
 		length:   conf.Length,
 		overflow: conf.Overflow,
+		state:    NewState(),
 	}
 	q.queues = []*bufferQueue{
 		newBufferQueue(q),
@@ -182,12 +184,14 @@ func (q *Queue) Insert(p Priority, ctx *Context) error {
 				return QueueFull
 			} else if dropped {
 				q.count -= 1
+				q.state.dropped()
 				break
 			}
 		}
 	}
 
 	q.count += 1
+	defer q.state.insert()
 	return q.queues[p].insert(ctx)
 }
 
@@ -197,6 +201,7 @@ func (q *Queue) acquire() *task {
 
 	for p := 2; p > -1; p -= 1 {
 		if t := q.queues[p].acquire(); t != nil {
+			defer q.state.acq()
 			return t
 		}
 	}
@@ -212,4 +217,11 @@ func (q *Queue) ack(f func()) {
 		f()
 	}
 	q.count -= 1
+	defer q.state.ack()
+}
+
+func (q *Queue) State() *State {
+	q.RLock()
+	defer q.RUnlock()
+	return q.state
 }
